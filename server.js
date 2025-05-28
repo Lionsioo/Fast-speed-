@@ -1,37 +1,52 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const path = require('path');
+import express from "express";
+import dotenv from "dotenv";
+import cors from "cors";
+import mongoose from "mongoose";
+import deviceRoutes from "./routes/deviceRoutes.js";
+import trackerRoutes from "./routes/trackerRoutes.js";
+import http from "http";
+import { Server } from "socket.io";
 
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CLIENT_ORIGIN,
+    methods: ["GET", "POST"]
+  }
+});
+
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
-const authRoutes = require('./routes/auth');
-const deviceRoutes = require('./routes/deviceRoutes');
-const imageRoutes = require('./routes/imageRoutes');
-const trackerRoutes = require('./routes/trackerRoutes');
-const trackRoutes = require('./routes/trackRoutes');
+// Routes
+app.use("/devices", deviceRoutes);
+app.use("/tracker", trackerRoutes);
 
-app.use('/api/auth', authRoutes);
-app.use('/api/devices', deviceRoutes);
-app.use('/api/images', imageRoutes);
-app.use('/api/track', trackerRoutes);
-app.use('/api/tracks', trackRoutes);
-
+// MongoDB connection
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
-})
-.then(() => {
-  console.log('MongoDB connected');
-  app.listen(process.env.PORT || 5000, () => {
-    console.log(`Server running on port ${process.env.PORT || 5000}`);
+}).then(() => {
+  console.log("✅ MongoDB connected successfully");
+}).catch((error) => {
+  console.error("❌ MongoDB connection failed:", error);
+});
+
+// Socket.io connection
+io.on("connection", (socket) => {
+  console.log("🔌 A user connected");
+
+  socket.on("disconnect", () => {
+    console.log("❌ A user disconnected");
   });
-})
-.catch(err => console.log(err));
-    
+});
+
+// ✅ Port binding 
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
+        
